@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,6 +9,8 @@ public class PlayerController : MonoBehaviour
     private Vector2 input; //Vector2 is a struct in Unity that is used to represent 2D
                             //positions and vectors. It holds X and Y values.
     private Animator animator;
+    public LayerMask solidObjectsLayer;
+    public LayerMask interactableLayer;
 
     //Awake() is used to initialise variables or states before the game starts.
     //In this case, it initialises the Animator variable.
@@ -17,7 +20,7 @@ public class PlayerController : MonoBehaviour
         //Used for the sprite animation when moving.
     }
 
-    public void Update()
+    public void HandleUpdate()
     {
         //If the character is not moving, it will be waiting and checking for inputs.
         if (!isMoving)
@@ -46,13 +49,34 @@ public class PlayerController : MonoBehaviour
                 targetPos.x += input.x;
                 targetPos.y += input.y;
                 
-                StartCoroutine(Move(targetPos));
+                if (isWalkable(targetPos)) //If it is walkable, then move to that position
+                    StartCoroutine(Move(targetPos));
             }
         }
         animator.SetBool("isMoving", isMoving);
+
+        if (Input.GetKeyDown(KeyCode.F))
+            Interact();
+            //Interact using the F key. This can be changed with any other valid AND available key.
     }
-            //Function for coroutine to move the player from one point to another point.
-            //Vector3 holds three values: X, Y, and Z.
+
+    void Interact()
+    {
+        var facingDir = new Vector3(animator.GetFloat("moveX"), animator.GetFloat("moveY"));
+        var interactPos = transform.position + facingDir;
+        Debug.DrawLine(transform.position, interactPos, Color.red, 3f);
+        //This helps to see if the interaction works.
+        
+        var collider = Physics2D.OverlapCircle(interactPos, 0.2f, interactableLayer);
+        if (collider != null)
+        {
+            //Debug.Log("There is an NPC here."); //This shows up in the console.
+            collider.GetComponent<Interactable>()?.Interact();
+        }
+    }
+    
+    //Function for coroutine to move the player from one point to another point.
+    //Vector3 holds three values: X, Y, and Z.
     IEnumerator Move(Vector3 targetPos)
     {
         isMoving = true;
@@ -69,5 +93,15 @@ public class PlayerController : MonoBehaviour
         }
         transform.position = targetPos;
         isMoving= false;
+    }
+
+    //If the target position is going to overlap a solid object, then do not walk.
+    private bool isWalkable(Vector3 targetPos)
+    {
+        if(Physics2D.OverlapCircle(targetPos, 0.2f, solidObjectsLayer|interactableLayer) != null)
+        {
+            return false;
+        } //The character cannot walk if returns false.
+        return true; //The character can walk if it returns true.
     }
 }
